@@ -1,0 +1,10 @@
+{
+  "uploadPassword": "wuyu123",
+  "adminPassword": "wuyu123",
+  "requireUploadPassword": true,
+  "requireHomePassword": true,
+  "siteName": "吾语",
+  "dateFontSize": 12,
+  "textFontSize": 15,
+  "adminPath": "/admin"
+}

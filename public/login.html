@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>进入吾语</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  </head>
+  <body class="pure-body">
+    <div class="auth-wrapper">
+      <div class="auth-card">
+        <div class="auth-title">进入《<span data-site-name>吾语</span>》</div>
+        <form id="login-form" class="auth-form">
+          <label class="field-label" for="password">密码</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            class="field-input"
+            autocomplete="current-password"
+            required
+            autofocus
+            placeholder="输入密码以继续"
+          />
+          <div id="login-error" class="field-error"></div>
+          <button type="submit" class="primary-button wide-button">进入</button>
+        </form>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const SITE_NAME_DEFAULT = '吾语';
+        const siteNameEls = document.querySelectorAll('[data-site-name]');
+        const form = document.getElementById('login-form');
+        const errorEl = document.getElementById('login-error');
+
+        function applySiteName(name) {
+          const nextName = name && name.trim() ? name.trim() : SITE_NAME_DEFAULT;
+          document.title = `进入${nextName}`;
+          siteNameEls.forEach((el) => {
+            el.textContent = nextName;
+          });
+        }
+
+        applySiteName(SITE_NAME_DEFAULT);
+
+        async function loadSiteName() {
+          try {
+            const resp = await fetch('/api/public-settings');
+            if (resp.ok) {
+              const data = await resp.json();
+              applySiteName(data.siteName);
+              return;
+            }
+          } catch (err) {
+            // ignore
+          }
+          applySiteName();
+        }
+
+        loadSiteName();
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          errorEl.textContent = '';
+          const password = document.getElementById('password').value;
+          try {
+            const resp = await fetch('/login', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+              },
+              body: new URLSearchParams({ password })
+            });
+            if (!resp.ok) {
+              errorEl.textContent = '密码不对，再试一次。';
+              return;
+            }
+            const data = await resp.json();
+            if (data && data.success) {
+              window.location.href = '/';
+            } else {
+              errorEl.textContent = '密码不对，再试一次。';
+            }
+          } catch (err) {
+            errorEl.textContent = '网络有点问题，稍后再试。';
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>进入吾语后台</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  </head>
+  <body class="pure-body">
+    <div class="auth-wrapper">
+      <div class="auth-card">
+        <div class="auth-title">进入《<span data-site-name>吾语</span>》后台</div>
+        <form id="admin-login-form" class="auth-form">
+          <label class="field-label" for="password">后台密码</label>
+          <div class="password-field">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              class="field-input"
+              autocomplete="off"
+              required
+              autofocus
+              placeholder="输入后台密码"
+            />
+            <button
+              type="button"
+              id="toggle-password-visibility"
+              class="icon-button eye-button"
+              aria-label="切换密码可见性"
+            >
+              <span class="eye-icon"></span>
+            </button>
+          </div>
+          <div id="login-error" class="field-error"></div>
+          <button type="submit" class="primary-button wide-button">进入后台</button>
+        </form>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const SITE_NAME_DEFAULT = '吾语';
+        const siteNameEls = document.querySelectorAll('[data-site-name]');
+        const form = document.getElementById('admin-login-form');
+        const errorEl = document.getElementById('login-error');
+        const passwordInput = document.getElementById('password');
+        const toggleBtn = document.getElementById('toggle-password-visibility');
+        let currentAdminPath = '/iusadmin';
+
+        function applySiteName(name) {
+          const nextName = name && name.trim() ? name.trim() : SITE_NAME_DEFAULT;
+          document.title = `进入${nextName}后台`;
+          siteNameEls.forEach((el) => {
+            el.textContent = nextName;
+          });
+        }
+
+        applySiteName(SITE_NAME_DEFAULT);
+
+        async function loadSiteName() {
+          try {
+            const resp = await fetch('/api/public-settings');
+            if (resp.ok) {
+              const data = await resp.json();
+              applySiteName(data.siteName);
+              if (data.adminPath && typeof data.adminPath === 'string') {
+                currentAdminPath = data.adminPath;
+              }
+              return;
+            }
+          } catch (err) {
+            // ignore
+          }
+          applySiteName();
+        }
+
+        loadSiteName();
+
+        if (toggleBtn && passwordInput) {
+          toggleBtn.addEventListener('click', () => {
+            const isHidden = passwordInput.type === 'password';
+            passwordInput.type = isHidden ? 'text' : 'password';
+            toggleBtn.classList.toggle('active', isHidden);
+          });
+        }
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          errorEl.textContent = '';
+          const password = passwordInput.value || '';
+          if (!password) {
+            errorEl.textContent = '请输入后台密码。';
+            return;
+          }
+          try {
+            const resp = await fetch(`${currentAdminPath}/login`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+              },
+              credentials: 'same-origin',
+              body: new URLSearchParams({ password })
+            });
+            if (!resp.ok) {
+              const data = await resp.json().catch(() => ({}));
+              errorEl.textContent = data.error || '密码错误。';
+              return;
+            }
+            window.location.href = currentAdminPath;
+          } catch (err) {
+            errorEl.textContent = '网络有点问题，稍后再试。';
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>吾语</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  </head>
+  <body class="pure-body">
+    <div class="page-shell">
+      <header class="top-bar">
+        <div class="title-area">《<span data-site-name>吾语</span>》</div>
+        <div class="search-area">
+          <input
+            id="search-input"
+            class="search-input"
+            type="search"
+            placeholder="搜索语录..."
+          />
+        </div>
+        <div class="action-area">
+          <button id="open-modal-btn" class="primary-button line-button">
+            记录
+          </button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <section id="quotes-container" class="quotes-container timeline-container"></section>
+        <div id="load-more-sentinel" class="load-sentinel"></div>
+        <div id="empty-state" class="empty-state hidden">还没有记录，可以先写一条。</div>
+        <div id="list-loading" class="list-loading hidden">正在载入...</div>
+      </main>
+      <footer class="page-footer">
+        <div class="page-footer-text"><span>Copyright © 2025 ius | Licensed under MIT License | <a href="#" id="studioLink" target="_blank">WuYu</a></span></div>
+      </footer>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">记录一则 <span data-site-name>吾语</span></div>
+          <button id="close-modal-btn" class="icon-button" aria-label="关闭">×</button>
+        </div>
+        <form id="quote-form" class="modal-form">
+          <label class="field-label" for="text">语录</label>
+          <textarea
+            id="text"
+            name="text"
+            class="field-input textarea"
+            rows="4"
+            required
+            placeholder="写下那句好玩的吾语"
+          ></textarea>
+
+          <label class="field-label" for="date">日期</label>
+          <input id="date" name="date" type="date" class="field-input" required />
+
+          <label class="field-label" for="screenshot">截图（可选）</label>
+          <div id="file-drop-area" class="file-drop-area">
+            <input
+              id="screenshot"
+              name="screenshot"
+              type="file"
+              class="file-input-native"
+              accept="image/*"
+            />
+            <div id="file-hint" class="file-hint">
+              截图可选：可以点击选择、拖拽截图到这里，或直接粘贴。
+            </div>
+          </div>
+
+          <label class="field-label" for="password">密码</label>
+          <div class="password-field">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              class="field-input"
+              placeholder="上传时输入密码"
+              required
+            />
+            <button
+              type="button"
+              id="toggle-password-visibility"
+              class="icon-button eye-button"
+              aria-label="切换密码可见性"
+            >
+              <span class="eye-icon"></span>
+            </button>
+          </div>
+
+          <div id="form-error" class="field-error"></div>
+
+          <div class="modal-actions">
+            <button type="button" id="cancel-btn" class="secondary-button">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="image-viewer" class="image-viewer hidden">
+      <div class="image-viewer-panel">
+        <button
+          type="button"
+          id="image-viewer-close"
+          class="image-viewer-close-button"
+          aria-label="关闭图片预览"
+        >
+          ×
+        </button>
+        <div class="image-viewer-scroll">
+          <img id="image-viewer-img" class="image-viewer-img" alt="截图预览" />
+        </div>
+      </div>
+    </div>
+
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

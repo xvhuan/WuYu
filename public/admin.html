@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>吾语后台</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  </head>
+  <body class="pure-body">
+    <div class="page-shell">
+      <header class="top-bar">
+        <div class="title-area">《<span data-site-name>吾语</span>》后台</div>
+        <div class="search-area">
+          <input
+            id="admin-search-input"
+            class="search-input"
+            type="search"
+            placeholder="搜索语录..."
+          />
+        </div>
+        <div class="action-area">
+          <a href="/" class="secondary-button">返回前台</a>
+          <button type="button" id="admin-settings-btn" class="secondary-button">设置</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <section class="quotes-container" id="admin-quotes-container"></section>
+        <div id="admin-load-more-sentinel" class="load-sentinel"></div>
+        <div id="admin-empty-state" class="empty-state hidden">暂无记录。</div>
+        <div id="admin-list-loading" class="list-loading hidden">正在载入...</div>
+      </main>
+    </div>
+
+    <div id="admin-toast" class="admin-toast"></div>
+
+    <div id="admin-delete-overlay" class="modal-overlay hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">删除 <span data-site-name>吾语</span></div>
+          <button id="admin-delete-close" class="icon-button" aria-label="关闭">×</button>
+        </div>
+        <div class="modal-form">
+          <div class="field-label">确认删除这条 <span data-site-name>吾语</span>？</div>
+          <div id="admin-delete-preview" class="quote-text" style="font-size:13px;max-height:120px;overflow:hidden;margin:8px 0 12px;"></div>
+          <div id="admin-delete-error" class="field-error"></div>
+          <div class="modal-actions">
+            <button type="button" id="admin-delete-cancel" class="secondary-button">取消</button>
+            <button type="button" id="admin-delete-confirm" class="primary-button">删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-edit-overlay" class="modal-overlay hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">编辑 <span data-site-name>吾语</span></div>
+          <button id="admin-edit-close" class="icon-button" aria-label="关闭">×</button>
+        </div>
+        <form id="admin-edit-form" class="modal-form">
+          <label class="field-label" for="admin-edit-text">语录</label>
+          <textarea
+            id="admin-edit-text"
+            class="field-input textarea"
+            rows="4"
+            required
+          ></textarea>
+
+          <label class="field-label" for="admin-edit-date">日期</label>
+          <input id="admin-edit-date" type="date" class="field-input" required />
+
+          <label class="field-label" for="admin-edit-image">截图（可选）</label>
+          <div class="admin-edit-image-field">
+            <div id="admin-edit-drop-area" class="file-drop-area">
+              <input
+                id="admin-edit-image"
+                type="file"
+                class="file-input-native"
+                accept="image/*"
+              />
+              <div id="admin-edit-image-status" class="file-hint">
+                当前没有截图，可以点击或拖拽文件到这里。
+              </div>
+            </div>
+            <button
+              type="button"
+              id="admin-edit-image-remove"
+              class="secondary-button delete-button admin-edit-image-remove"
+            >
+              清除当前截图
+            </button>
+          </div>
+
+          <div id="admin-edit-error" class="field-error"></div>
+
+          <div class="modal-actions">
+            <button type="button" id="admin-edit-cancel" class="secondary-button">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="admin-settings-overlay" class="modal-overlay hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">系统设置</div>
+          <button id="admin-settings-close" class="icon-button" aria-label="关闭">×</button>
+        </div>
+        <form id="admin-settings-form" class="modal-form">
+          <label class="field-label" for="admin-settings-site-name">网站名称</label>
+          <input
+            id="admin-settings-site-name"
+            type="text"
+            class="field-input"
+            placeholder="例如：吾语"
+            maxlength="20"
+          />
+
+          <label class="field-label" for="admin-settings-admin-path">后台路径</label>
+          <input
+            id="admin-settings-admin-path"
+            type="text"
+            class="field-input"
+            placeholder="例如：/iusadmin"
+          />
+
+          <div class="settings-checkbox">
+            <input
+              type="checkbox"
+              id="admin-settings-require-password"
+              class="settings-checkbox-input"
+            />
+            <label for="admin-settings-require-password" class="settings-checkbox-label">
+              启用前端密码（关闭后，前端记录不需要密码）
+            </label>
+          </div>
+
+          <div class="settings-checkbox">
+            <input
+              type="checkbox"
+              id="admin-settings-require-home-password"
+              class="settings-checkbox-input"
+            />
+            <label for="admin-settings-require-home-password" class="settings-checkbox-label">
+              访问首页需要密码（与前端记录密码一致）
+            </label>
+          </div>
+
+          <label class="field-label" for="admin-settings-upload-password">新的前端记录密码</label>
+          <input
+            id="admin-settings-upload-password"
+            type="password"
+            class="field-input"
+            placeholder="留空表示不修改"
+          />
+
+          <label class="field-label" for="admin-settings-admin-password">新的后台密码</label>
+          <input
+            id="admin-settings-admin-password"
+            type="password"
+            class="field-input"
+            placeholder="留空表示不修改"
+          />
+
+          <label class="field-label" for="admin-settings-date-font">日期字体大小 (px)</label>
+          <input
+            id="admin-settings-date-font"
+            type="number"
+            min="8"
+            max="40"
+            step="1"
+            class="field-input"
+            placeholder="默认 12"
+          />
+
+          <label class="field-label" for="admin-settings-text-font">语录字体大小 (px)</label>
+          <input
+            id="admin-settings-text-font"
+            type="number"
+            min="8"
+            max="40"
+            step="1"
+            class="field-input"
+            placeholder="默认 15"
+          />
+
+          <div class="settings-hint">保存后立即生效，当前登录状态保持不变。</div>
+
+          <div id="admin-settings-error" class="field-error"></div>
+
+          <div class="modal-actions">
+            <button type="button" id="admin-settings-cancel" class="secondary-button">取消</button>
+            <button type="submit" class="primary-button">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="/assets/admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>吾语 · 访问验证</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <style>
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #fafafa;
+      }
+      .lock-card {
+        width: min(420px, 90vw);
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #f0f0f0;
+        padding: 28px 26px 24px;
+        box-shadow: 0 10px 38px rgba(0, 0, 0, 0.08);
+      }
+      .lock-title {
+        font-size: 18px;
+        margin-bottom: 8px;
+        letter-spacing: 0.08em;
+      }
+      .lock-desc {
+        font-size: 13px;
+        color: #666666;
+        margin-bottom: 18px;
+      }
+      .lock-error {
+        min-height: 18px;
+        font-size: 12px;
+        color: #d14343;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="lock-card">
+      <div class="lock-title"><span data-site-name>吾语</span></div>
+      <div class="lock-desc">请输入密码</div>
+      <form id="home-lock-form" class="modal-form">
+        <input
+          type="password"
+          id="home-lock-password"
+          class="field-input"
+          placeholder="访问密码"
+          required
+        />
+        <div class="lock-error" id="home-lock-error"></div>
+        <div class="modal-actions">
+          <button type="submit" class="primary-button">进入</button>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      (() => {
+        const SITE_NAME_DEFAULT = '吾语';
+        const siteNameEls = document.querySelectorAll('[data-site-name]');
+        const form = document.getElementById('home-lock-form');
+        const passwordInput = document.getElementById('home-lock-password');
+        const errorEl = document.getElementById('home-lock-error');
+
+        function applySiteName(name) {
+          const nextName = name && name.trim() ? name.trim() : SITE_NAME_DEFAULT;
+          document.title = `${nextName} · 访问验证`;
+          siteNameEls.forEach((el) => {
+            el.textContent = nextName;
+          });
+        }
+
+        applySiteName(SITE_NAME_DEFAULT);
+
+        async function loadPublicSettings() {
+          try {
+            const resp = await fetch('/api/public-settings');
+            if (resp.ok) {
+              const data = await resp.json();
+              applySiteName(data.siteName);
+            } else {
+              applySiteName();
+            }
+          } catch (err) {
+            applySiteName();
+          }
+        }
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (errorEl) {
+            errorEl.textContent = '';
+          }
+          const password = passwordInput.value.trim();
+          if (!password) {
+            errorEl.textContent = '请输入密码。';
+            return;
+          }
+          try {
+            const resp = await fetch('/api/public-auth', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({ password })
+            });
+            if (!resp.ok) {
+              const data = await resp.json().catch(() => ({}));
+              errorEl.textContent = data.error || '验证失败，请再次输入。';
+              return;
+            }
+            window.location.href = '/';
+          } catch (err) {
+            errorEl.textContent = '网络有点问题，稍后再试。';
+          }
+        });
+
+        loadPublicSettings();
+      })();
+    </script>
+  </body>
+</html>
