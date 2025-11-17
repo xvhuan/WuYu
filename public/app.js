@@ -23,6 +23,11 @@
   const imageViewer = document.getElementById('image-viewer');
   const imageViewerImg = document.getElementById('image-viewer-img');
   const imageViewerClose = document.getElementById('image-viewer-close');
+  const imageViewerZoomIn = document.getElementById('image-viewer-zoom-in');
+  const imageViewerZoomOut = document.getElementById('image-viewer-zoom-out');
+  const imageViewerZoomReset = document.getElementById('image-viewer-zoom-reset');
+  const imageViewerZoomValue = document.getElementById('image-viewer-zoom-value');
+  const imageViewerScroll = document.querySelector('.image-viewer-scroll');
 
   const timelineContainer = quotesContainer;
 
@@ -49,6 +54,12 @@
   let currentSiteName = SITE_NAME_DEFAULT;
   let currentDateFontSize = 12;
   let currentTextFontSize = 15;
+  let imageViewerScale = 1;
+  const IMAGE_VIEWER_MIN_SCALE = 0.5;
+  const IMAGE_VIEWER_MAX_SCALE = 3;
+  const IMAGE_VIEWER_SCALE_STEP = 0.15;
+  let imageViewerNaturalWidth = 0;
+  let imageViewerNaturalHeight = 0;
 
   function getSavedPassword() {
     try {
@@ -188,7 +199,7 @@
       cardIndexToDateIndex[cardIndex] = dateIndex;
     });
 
-    if (!timelineWheel) {
+    if (!timelineWheel || !timelineWheel.isConnected) {
       timelineWheel = document.createElement('div');
       timelineWheel.className = 'timeline-wheel';
       timelineWheelInner = document.createElement('div');
@@ -197,6 +208,14 @@
       timelineContainer.appendChild(timelineWheel);
       // eslint-disable-next-line no-console
       console.log('[timeline] created wheel');
+    }
+    if (!timelineWheelInner || !timelineWheelInner.isConnected) {
+      timelineWheelInner = timelineWheel.querySelector('.timeline-wheel-inner');
+      if (!timelineWheelInner) {
+        timelineWheelInner = document.createElement('div');
+        timelineWheelInner.className = 'timeline-wheel-inner';
+        timelineWheel.appendChild(timelineWheelInner);
+      }
     }
     if (!timelineWheelInner) return;
 
@@ -313,7 +332,20 @@
 
   function openImageViewer(src) {
     if (!src || !imageViewer || !imageViewerImg) return;
+    imageViewerNaturalWidth = 0;
+    imageViewerNaturalHeight = 0;
+    const handleLoad = () => {
+      imageViewerNaturalWidth =
+        imageViewerImg.naturalWidth || imageViewerImg.clientWidth || 0;
+      imageViewerNaturalHeight =
+        imageViewerImg.naturalHeight || imageViewerImg.clientHeight || 0;
+      setImageViewerScale(1, true);
+    };
+    imageViewerImg.onload = handleLoad;
     imageViewerImg.src = src;
+    if (imageViewerImg.complete) {
+      handleLoad();
+    }
     imageViewer.classList.remove('hidden');
     const raf = window.requestAnimationFrame || window.setTimeout;
     raf(() => {
@@ -329,8 +361,46 @@
       imageViewer.classList.add('hidden');
       if (imageViewerImg) {
         imageViewerImg.removeAttribute('src');
+        imageViewerImg.style.width = '';
+        imageViewerImg.style.height = '';
+        setImageViewerScale(1, true);
       }
     }, 200);
+  }
+
+  function setImageViewerScale(value, force = false) {
+    const next = Math.min(
+      IMAGE_VIEWER_MAX_SCALE,
+      Math.max(IMAGE_VIEWER_MIN_SCALE, value)
+    );
+    if (!force && Math.abs(next - imageViewerScale) < 0.001) return;
+    imageViewerScale = next;
+    if (imageViewerImg) {
+      const baseWidth =
+        imageViewerNaturalWidth ||
+        imageViewerImg.naturalWidth ||
+        imageViewerImg.clientWidth ||
+        0;
+      const baseHeight =
+        imageViewerNaturalHeight ||
+        imageViewerImg.naturalHeight ||
+        imageViewerImg.clientHeight ||
+        0;
+      if (baseWidth) {
+        imageViewerImg.style.width = `${baseWidth * imageViewerScale}px`;
+      }
+      if (baseHeight) {
+        imageViewerImg.style.height = `${baseHeight * imageViewerScale}px`;
+      }
+      imageViewerImg.style.maxWidth = 'none';
+    }
+    if (imageViewerZoomValue) {
+      imageViewerZoomValue.textContent = `${Math.round(imageViewerScale * 100)}%`;
+    }
+  }
+
+  function zoomImageViewer(step) {
+    setImageViewerScale(imageViewerScale + step);
   }
 
   function renderQuote(item, append = true) {
@@ -475,6 +545,14 @@
     updateIndicatorForIndex(dateIndex, { scroll: true, activate: true });
   }
 
+  function ensureContentFillsViewport() {
+    const doc = document.documentElement;
+    if (!doc) return;
+    if (doc.scrollHeight <= window.innerHeight + 80 && hasMore && !loading) {
+      loadQuotes();
+    }
+  }
+
   async function loadQuotes({ reset = false } = {}) {
     if (loading || (!hasMore && !reset)) return;
     loading = true;
@@ -528,6 +606,7 @@
     } finally {
       loading = false;
       listLoading.classList.add('hidden');
+      ensureContentFillsViewport();
     }
   }
 
@@ -696,6 +775,37 @@
     });
   }
 
+  if (imageViewerScroll) {
+    imageViewerScroll.addEventListener(
+      'wheel',
+      (e) => {
+        if (!imageViewer || imageViewer.classList.contains('hidden')) return;
+        if (e.ctrlKey) {
+          e.preventDefault();
+          const delta = e.deltaY < 0 ? IMAGE_VIEWER_SCALE_STEP : -IMAGE_VIEWER_SCALE_STEP;
+          zoomImageViewer(delta);
+        }
+      },
+      { passive: false }
+    );
+    imageViewerScroll.addEventListener('dblclick', () => {
+      if (imageViewer) {
+        const nextScale = imageViewerScale >= 1.5 ? 1 : 2;
+        setImageViewerScale(nextScale);
+      }
+    });
+  }
+
+  if (imageViewerZoomIn) {
+    imageViewerZoomIn.addEventListener('click', () => zoomImageViewer(IMAGE_VIEWER_SCALE_STEP));
+  }
+  if (imageViewerZoomOut) {
+    imageViewerZoomOut.addEventListener('click', () => zoomImageViewer(-IMAGE_VIEWER_SCALE_STEP));
+  }
+  if (imageViewerZoomReset) {
+    imageViewerZoomReset.addEventListener('click', () => setImageViewerScale(1));
+  }
+
   if (togglePasswordBtn && passwordInput) {
     togglePasswordBtn.addEventListener('click', () => {
       const isHidden = passwordInput.type === 'password';
@@ -841,3 +951,7 @@
 
   init();
 })();
+  let imageViewerScale = 1;
+  const IMAGE_VIEWER_MIN_SCALE = 0.5;
+  const IMAGE_VIEWER_MAX_SCALE = 3;
+  const IMAGE_VIEWER_SCALE_STEP = 0.15;

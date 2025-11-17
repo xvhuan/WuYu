@@ -4,17 +4,26 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const https = require('https');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 34212;
+const TRUST_PROXY = process.env.TRUST_PROXY || '1';
+
+app.set('trust proxy', TRUST_PROXY);
 
 const PASSWORD = 'wuyu123';
+const ADMIN_PASSWORD = 'wuyu123';
 const HOME_ACCESS_COOKIE = 'bo_home_access';
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'quotes.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const ipLocationCache = new Map();
+const IP_LOOKUP_HOST = 'hcapi22.market.alicloudapi.com';
+const IP_LOOKUP_PATH = '/ip';
+const IP_LOOKUP_APPCODE = '20adcc24713449ab8f2ad0776fd77d3d';
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -25,7 +34,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 const DEFAULT_SETTINGS = {
   uploadPassword: PASSWORD,
-  adminPassword: PASSWORD,
+  adminPassword: ADMIN_PASSWORD,
   requireUploadPassword: true,
   requireHomePassword: false,
   siteName: '吾语',
@@ -162,6 +171,83 @@ function getAdminLoginPath() {
   return `${base}/login`;
 }
 
+function normalizeClientIp(ip) {
+  if (!ip) return '';
+  let value = ip.trim();
+  if (!value) return '';
+  if (value.includes(',')) {
+    value = value.split(',')[0].trim();
+  }
+  if (value.startsWith('::ffff:')) {
+    value = value.slice(7);
+  }
+  if (value === '::1') return '127.0.0.1';
+  return value;
+}
+
+function isPrivateIp(ip) {
+  if (!ip) return true;
+  if (ip === '127.0.0.1') return true;
+  if (ip.startsWith('10.')) return true;
+  if (ip.startsWith('192.168.')) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)) return true;
+  if (ip.startsWith('::1')) return true;
+  return false;
+}
+
+function lookupIpLocation(ip) {
+  return new Promise((resolve) => {
+    const cleanIp = normalizeClientIp(ip);
+    if (!cleanIp || isPrivateIp(cleanIp)) {
+      return resolve(null);
+    }
+    if (ipLocationCache.has(cleanIp)) {
+      return resolve(ipLocationCache.get(cleanIp));
+    }
+    const aliAppCode =
+      process.env.ALI_IP_APPCODE ||
+      process.env.ALIYUN_APPCODE ||
+      process.env.ALI_APP_CODE ||
+      IP_LOOKUP_APPCODE;
+    const requestOptions = {
+      hostname: IP_LOOKUP_HOST,
+      path: `${IP_LOOKUP_PATH}?ip=${encodeURIComponent(cleanIp)}`,
+      headers: aliAppCode ? { Authorization: `APPCODE ${aliAppCode}` } : {}
+    };
+    const req = https.get(requestOptions, (resp) => {
+      let raw = '';
+      resp.on('data', (chunk) => {
+        raw += chunk;
+      });
+      resp.on('end', () => {
+        try {
+          const data = JSON.parse(raw);
+          if (!data || (data.ret && Number(data.ret) !== 200)) {
+            return resolve(null);
+          }
+          const payload = data.data || {};
+          const parts = [
+            payload.country,
+            payload.region,
+            payload.city,
+            payload.isp
+          ].filter(Boolean);
+          const location = parts.length ? parts.join(' · ') : null;
+          ipLocationCache.set(cleanIp, location);
+          return resolve(location);
+        } catch (err) {
+          return resolve(null);
+        }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(2500, () => {
+      req.destroy();
+      resolve(null);
+    });
+  });
+}
+
 function getHomeAccessToken(password) {
   return crypto.createHash('sha256').update(password || '').digest('hex');
 }
@@ -253,6 +339,21 @@ const homeIpBlacklist = new Set();
 const HOME_MAX_FAILED_ATTEMPTS = 5;
 
 function getClientIp(req) {
+  if (!req) return '';
+  const headers = req.headers || {};
+  const directHeaders = [
+    'x-forwarded-for',
+    'x-real-ip',
+    'cf-connecting-ip',
+    'x-forwarded-client-ip',
+    'true-client-ip'
+  ];
+  for (let i = 0; i < directHeaders.length; i += 1) {
+    const value = headers[directHeaders[i]];
+    if (value) {
+      return value;
+    }
+  }
   return (
     req.ip ||
     (req.connection && req.connection.remoteAddress) ||
@@ -564,7 +665,9 @@ app.get('/api/quotes', requireHomeAccess, (req, res) => {
     text: q.text,
     date: q.date,
     imageUrl: q.imageFile ? `/uploads/${q.imageFile}` : null,
-    createdAt: q.createdAt
+    createdAt: q.createdAt,
+    ipAddress: q.ipAddress || null,
+    ipLocation: q.ipLocation || null
   }));
 
   res.json({
@@ -573,8 +676,8 @@ app.get('/api/quotes', requireHomeAccess, (req, res) => {
   });
 });
 
-app.post('/api/quotes', checkUploadAccess, upload.single('screenshot'), (req, res) => {
-  const ip = req.clientIp || getClientIp(req);
+app.post('/api/quotes', checkUploadAccess, upload.single('screenshot'), async (req, res) => {
+  const ip = normalizeClientIp(req.clientIp || getClientIp(req));
   const { text, date, password } = req.body;
   const requireUploadPassword = isUploadPasswordRequired();
   const expectedPassword = getCurrentUploadPassword();
@@ -617,12 +720,16 @@ app.post('/api/quotes', checkUploadAccess, upload.single('screenshot'), (req, re
 
   const now = new Date();
   const quotes = loadQuotes();
+  const ipLocation = await lookupIpLocation(ip);
+
   const quote = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     text: text.trim(),
     date,
     imageFile: req.file ? req.file.filename : null,
-    createdAt: now.toISOString()
+    createdAt: now.toISOString(),
+    ipAddress: ip || null,
+    ipLocation: ipLocation || null
   };
   quotes.push(quote);
   saveQuotes(quotes);

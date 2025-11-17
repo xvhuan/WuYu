@@ -334,6 +334,16 @@
     textEl.textContent = item.text || '';
     card.appendChild(textEl);
 
+    if (item.ipAddress || item.ipLocation) {
+      const ipInfo = document.createElement('div');
+      ipInfo.className = 'quote-ip-info';
+      const ipParts = [];
+      if (item.ipAddress) ipParts.push(item.ipAddress);
+      if (item.ipLocation) ipParts.push(item.ipLocation);
+      ipInfo.textContent = `IP：${ipParts.join(' · ') || '未知'}`;
+      card.appendChild(ipInfo);
+    }
+
     if (item.imageUrl) {
       const imgWrapper = document.createElement('div');
       imgWrapper.className = 'quote-image-wrapper';

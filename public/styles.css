@@ -160,7 +160,7 @@ body.pure-body {
 .timeline-container {
   position: relative;
   border-left: 1px solid #e5e5e5;
-  margin-left: 12px;
+  margin-left: 70px;
   padding-left: 22px;
 }
 
@@ -301,6 +301,12 @@ body.pure-body {
   font-size: var(--quote-date-size, 12px);
 }
 
+.quote-ip-info {
+  font-size: 11px;
+  color: #aaaaaa;
+  margin-bottom: 8px;
+}
+
 .quote-image-wrapper {
   display: inline-flex;
   max-width: 100%;
@@ -436,6 +442,26 @@ body.pure-body {
   overflow: hidden;
 }
 
+.image-viewer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.viewer-control-button {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.viewer-zoom-value {
+  font-size: 13px;
+  color: #666666;
+  min-width: 48px;
+  text-align: center;
+}
+
 .image-viewer-scroll {
   padding: 24px;
   overflow: auto;
@@ -443,8 +469,10 @@ body.pure-body {
 
 .image-viewer-img {
   display: block;
-  max-width: 100%;
+  max-width: none;
+  width: auto;
   height: auto;
+  will-change: width, height;
 }
 
 .image-viewer-close-button {
